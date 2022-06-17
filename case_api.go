@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -109,18 +110,25 @@ func getNewCases(records [][]string, country string, date string) []string {
 	return newCases
 }
 
-func getTotalCases(records [][]string, date string) []string {
+func getTotalCases(records [][]string, date string) []int64 {
 
-	var total_cases = []string{}
+	var total_cases = []int64{}
+
+	var sum int64
 	for i := 1; i < len(records); i++ {
 
 		//fmt.Println(records[0][0], i)
-		if records[i][0] == date {
+		if records[i][0] >= date {
 
-			total_cases = append(total_cases, records[i][4])
+			//total_cases = append(total_cases, records[i][4])
+
+			temp, _ := strconv.ParseInt(records[i][4], 0, 8)
+			sum = temp + sum
 
 		}
 
 	}
+	total_cases = append(total_cases, sum)
+
 	return total_cases
 }
