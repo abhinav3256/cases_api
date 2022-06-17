@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +32,11 @@ func setupRoutes(r *gin.Engine) {
 //Dummy function
 func route1(c *gin.Context) {
 	country, ok := c.Params.Get("country")
-	date, ok := c.GetQuery("date")
+	date, date_err := c.GetQuery("date")
+
+	if date_err == false {
+		date = "all"
+	}
 	cases := getNewCases(records, country, date)
 	if ok == false {
 		res := gin.H{
@@ -40,6 +45,7 @@ func route1(c *gin.Context) {
 		c.JSON(http.StatusOK, res)
 		return
 	}
+
 	/*
 		city := ""
 	*/
@@ -47,7 +53,6 @@ func route1(c *gin.Context) {
 		"new_cases": cases,
 		"country":   country,
 		"date":      date,
-		"count":     len(cases),
 	}
 	c.JSON(http.StatusOK, res)
 }
@@ -55,7 +60,8 @@ func route1(c *gin.Context) {
 //Dummy function
 func route2(c *gin.Context) {
 
-	date, ok := c.Params.Get("from_date")
+	date_str, ok := c.Params.Get("from_date")
+	date := convertToTimeFormat(date_str)
 
 	total_cases := getTotalCases(records, date)
 	if ok == false {
@@ -72,7 +78,6 @@ func route2(c *gin.Context) {
 	res := gin.H{
 		"total_cases": total_cases,
 		"date":        date,
-		"count":       len(total_cases),
 	}
 	c.JSON(http.StatusOK, res)
 }
@@ -92,43 +97,65 @@ func readCsvFile(filePath string) [][]string {
 
 	return records
 }
+func convertToTimeFormat(dateStr string) time.Time {
+	t, err := time.Parse("2006-01-02", dateStr)
 
-func getNewCases(records [][]string, country string, date string) []string {
+	if err != nil {
+		fmt.Println("error: ", err)
+	}
+	return t
+}
 
-	var newCases = []string{}
+func getNewCases(records [][]string, country string, date string) int64 {
+
+	var newCases int64
+	var sum int64
 	for i := 1; i < len(records); i++ {
 
 		//fmt.Println(records[0][0], i)
-		if records[i][1] == country {
-			if records[i][0] == date {
-				newCases = append(newCases, records[i][2])
+		if date != "all" {
+			if records[i][1] == country {
+				if records[i][0] == date {
+					newCases, _ = strconv.ParseInt(records[i][2], 0, 8)
+				}
+
+			}
+		} else {
+			if records[i][1] == country {
+				newCases, _ = strconv.ParseInt(records[i][2], 0, 8)
+				sum = newCases + sum
+			}
+		}
+
+	}
+	if date != "all" {
+		return newCases
+	} else {
+		return sum
+	}
+
+}
+
+func getTotalCases(records [][]string, from_date time.Time) float64 {
+
+	//var total_cases = []int64{}
+
+	var sum = float64(0.0)
+	for i := 1; i < len(records); i++ {
+		date := convertToTimeFormat(records[i][0])
+		//fmt.Println(records[0][0], i)
+		if date.After(from_date) {
+
+			//total_cases = append(total_cases, records[i][4])
+
+			temp, err := strconv.ParseFloat(records[i][4], 64)
+			if err == nil {
+				sum = temp + sum
 			}
 
 		}
 
 	}
-	return newCases
-}
 
-func getTotalCases(records [][]string, date string) []int64 {
-
-	var total_cases = []int64{}
-
-	var sum int64
-	for i := 1; i < len(records); i++ {
-
-		//fmt.Println(records[0][0], i)
-		if records[i][0] >= date {
-
-			//total_cases = append(total_cases, records[i][4])
-
-			temp, _ := strconv.ParseInt(records[i][4], 0, 8)
-			sum = temp + sum
-
-		}
-
-	}
-	total_cases = append(total_cases, sum)
-
-	return total_cases
+	return sum
 }
